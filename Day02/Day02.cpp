@@ -13,31 +13,23 @@ int main(int argc, char* argv[])
     std::ifstream inputFile;
     inputFile.open(Filename);
     std::string inputLine;
-    std::map<std::string, int64_t> availableCubes =
-        {
-        {"red", 12},
-        {"green", 13},
-        {"blue", 14}
-        };
-    int32_t validGameNumbers = 0;
+
+    int64_t totalProductCount = 0;
     while (inputFile.is_open() && !inputFile.eof())
     {
         std::getline(inputFile, inputLine);
         std::stringstream stringstream(inputLine);
         std::string game;
         std::getline(stringstream,  game, ':');
-        std::cout << game << std::endl;
         int32_t gameNumber;
         sscanf_s(game.c_str(), "Game %d", &gameNumber);
-        std::cout << "Game number: " << gameNumber << std::endl;
-        bool bGamePossible = true;
+        std::map<std::string, int64_t> colorCounter;
         while (!stringstream.eof())
         {
             std::string roundOutput;
             std::getline(stringstream,  roundOutput, ';');
 
             std::stringstream roundStream(roundOutput);
-            std::map<std::string, int64_t> colorCounter;
             while (!roundStream.eof())
             {
                 std::string colorOutput;
@@ -50,24 +42,22 @@ int main(int argc, char* argv[])
                 if (!colorCounter.contains(color))
                     colorCounter[color] = colorCount;
                 else
-                    colorCounter[color] += colorCount;
+                    colorCounter[color] = std::max(colorCount, colorCounter[color]);
                 
-            }
-            for (const auto& value : colorCounter)
-            {
-                if (value.second > availableCubes[value.first])
-                {
-                    bGamePossible = false;
-                    break;
-                }
             }
                 
         }
-        if (bGamePossible)
-            validGameNumbers += gameNumber;
+
+        int64_t cubeProduct  = colorCounter.empty() ? 0 : 1;
+        for (const auto& value : colorCounter)
+        {
+            cubeProduct *= value.second;
+        }
+        std::cout << "Game " <<  gameNumber << " product: " << cubeProduct << std::endl;
+        totalProductCount += cubeProduct;
     }
 
-    std::cout << "Result: " << validGameNumbers << std::endl;
+    std::cout << "Result: " << totalProductCount << std::endl;
     
     return 0;
 }
