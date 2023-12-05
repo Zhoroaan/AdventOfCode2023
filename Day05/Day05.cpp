@@ -1,12 +1,11 @@
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
 
-//std::string Filename = "TestInput.txt";
-std::string Filename = "Input.txt";
+std::string Filename = "TestInput.txt";
+//std::string Filename = "Input.txt";
 
 struct MappingRange
 {
@@ -80,36 +79,44 @@ Category ReadCategory(std::ifstream& InInputFile, bool bInFirstLine = false)
 }
 
 
-std::map<int64_t, int64_t> GetSeedMappingToCategories(const Category& InSeeds, const std::vector<Category>& InCategories)
+int64_t GetSeedMappingToCategories(const Category& InSeeds, const std::vector<Category>& InCategories)
 {
-    std::map<int64_t, int64_t> returnMap;
-    std::map<int64_t, int32_t> appliedMappingIndex;
-    for (auto startSeedLocation : InSeeds.Ranges)
+    int64_t lowestLocation = std::numeric_limits<int64_t>::max();
+
+    for (int32_t startIndex = 0; startIndex < static_cast<int32_t>(InSeeds.Ranges.size()); startIndex += 2)
     {
-        returnMap[startSeedLocation.DestMap] = startSeedLocation.DestMap;
-        appliedMappingIndex[startSeedLocation.DestMap] = -1;
-    }
-    
-    for (int32_t categoryIndex = 0; categoryIndex < static_cast<int32_t>(InCategories.size()); ++categoryIndex)
-    {
-        const auto& category = InCategories[categoryIndex];
-        for (const MappingRange& range : category.Ranges)
+        std ::cout << "Iterating range: " << InSeeds.Ranges[startIndex].SourceMap << " " << InSeeds.Ranges[startIndex + 1].SourceMap << std::endl;
+        auto& currentStartValue = InSeeds.Ranges[startIndex];
+
+        const int64_t rangeSize = currentStartValue.SourceMap + InSeeds.Ranges[startIndex + 1].SourceMap;
+        for (int64_t currentSourceValue = currentStartValue.SourceMap; currentSourceValue < rangeSize; ++currentSourceValue)
         {
-            for (auto& currentMappingValue : returnMap)
+            int64_t currentValue = currentSourceValue;
+            for (int32_t categoryIndex = 0; categoryIndex < static_cast<int32_t>(InCategories.size()); ++categoryIndex)
             {
-                if (range.IsInSideRange(currentMappingValue.second) && appliedMappingIndex[currentMappingValue.second] < categoryIndex)
+                const auto& category = InCategories[categoryIndex];
+                for (const MappingRange& range : category.Ranges)
                 {
-                    if (currentMappingValue.first == 14)
+                    /*if (currentValue == 82)
                     {
-                        std::cout << category.Name << " mapped " << currentMappingValue.second  << " to " << range.GetMappedCount(currentMappingValue.second) << std::endl;
+                        int breakHere = 0;
+                    }*/
+                    if (range.IsInSideRange(currentValue))
+                    {
+                        /*if (currentValue == 82)
+                        {
+                            std::cout << category.Name << " mapped " << currentValue  << " to " << range.GetMappedCount(currentValue) << std::endl;
+                        }*/
+                        currentValue = range.GetMappedCount(currentValue);
+                        break;
                     }
-                    currentMappingValue.second = range.GetMappedCount(currentMappingValue.second);
-                    appliedMappingIndex[currentMappingValue.second] = categoryIndex;
                 }
             }
+            if (currentValue < lowestLocation)
+                lowestLocation = currentValue;
         }
     }
-    return returnMap;
+    return lowestLocation;
 }
 
 int main(int argc, char* argv[])
@@ -118,7 +125,6 @@ int main(int argc, char* argv[])
     inputFile.open(Filename);
     std::string inputLine;
     
-    //std::getline(inputFile, inputLine);
     auto seeds = ReadCategory(inputFile, true);
     auto soil = ReadCategory(inputFile);
     auto fertilizer = ReadCategory(inputFile);
@@ -128,15 +134,7 @@ int main(int argc, char* argv[])
     auto humidity  = ReadCategory(inputFile);
     auto location  = ReadCategory(inputFile);
 
-    std::map<int64_t, int64_t> seedMap = GetSeedMappingToCategories(seeds, {soil, fertilizer, water, light, temperature, humidity, location});
-
-    int64_t lowestLocation = std::numeric_limits<int64_t>::max();
-
-    for (const auto& seedMapping : seedMap)
-    {
-        if (seedMapping.second < lowestLocation)
-            lowestLocation = seedMapping.second;
-    }
+    int64_t lowestLocation = GetSeedMappingToCategories(seeds, {soil, fertilizer, water, light, temperature, humidity, location});
     
     std::cout << "The shortest distance is " << lowestLocation << std::endl;
     
