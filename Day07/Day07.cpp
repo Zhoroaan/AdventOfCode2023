@@ -16,36 +16,67 @@ struct Hand
 
     static int32_t CalculatePoints(const Hand& InOther)
     {
-        std::map<char, int32_t> cardCounts;
+        if (InOther.Cards == "JJJJJ")
+            return 7 * 10;
+        
+        std::vector<std::pair<char, int32_t>> cardCounts;
+        int numJ = 0;
         for (char cardValue : InOther.Cards)
         {
-            if (cardCounts.contains(cardValue))
-                cardCounts[cardValue]++;
-            else
-                cardCounts[cardValue] = 1;
+            if (cardValue == 'J')
+            {
+                numJ++;
+                continue;
+            }
+            bool foundValue = false;
+            for (std::pair<char, int32_t>& savedCards : cardCounts)
+            {
+                if (savedCards.first != cardValue)
+                    continue;
+                savedCards.second++;
+                foundValue = true;
+                break;
+            }
+            if (!foundValue)
+            {
+                std::pair<char, int32_t> newCard;
+                newCard.first = cardValue;
+                newCard.second = 1;
+                cardCounts.push_back(newCard);
+            }
         }
+
         int num3 = 0;
         int num2 = 0;
 
-        for (const std::pair<const char, int>& cardCount : cardCounts)
+        std::sort(cardCounts.begin(), cardCounts.end(), [](const std::pair<const char, int>& InA, const std::pair<const char, int>& InB)
+        {
+            return InA.second > InB.second;
+        });
+
+        cardCounts[0].second += numJ;
+        
+        for (const std::pair<char, int32_t>& cardCount : cardCounts)
         {
             if (cardCount.second == 5)
-                return 7;
+                return 7 * 10;
             if (cardCount.second == 4)
-                return 6;
+                return 6 * 10;
             if (cardCount.second == 3)
                 num3++;
             if (cardCount.second == 2)
                 num2++;
         }
+        
         if (num3 == 1 && num2 == 1)
-            return 5;
+            return 5 * 10;
         if (num3 == 1)
-            return 4;
+            return 4 * 10;
         if (num2 > 1)
-            return 3;
+            return 3 * 10;
         if (num2 == 1)
-            return 2;
+            return 2 * 10;
+        
         return 1;
     }
 
@@ -60,7 +91,7 @@ struct Hand
         case 'Q':
             return 12;
         case 'J':
-            return 11;
+            return 1;
         case 'T':
             return 10;
         default:
@@ -82,6 +113,14 @@ struct Hand
 
     bool operator < (const Hand& other) const
     {
+        if (Cards == "QQQJA" && other.Cards == "KTJJT")
+        {
+            int b = 2;
+        }
+        if (Cards == "KTJJT" && other.Cards == "QQQJA")
+        {
+            int b = 2;
+        }
         /*bool result = (CalculatePoints(*this) < CalculatePoints(other)) || IsHandOrderLower(other);
 
         if (result)
