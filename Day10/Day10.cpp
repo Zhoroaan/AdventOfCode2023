@@ -1,11 +1,11 @@
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <random>
 #include <string>
 #include <vector>
-//std::string Filename = "TestInput.txt";
-std::string Filename = "Input.txt";
+std::string Filename = "TestInput.txt";
+//std::string Filename = "Input.txt";
 
 struct Point
 {
@@ -30,6 +30,38 @@ struct Point
     {
         return X == InPoint.X && Y == InPoint.Y;
     }
+
+    bool operator<(const Point& InPoint) const
+    {
+        return X < InPoint.X;
+    }
+};
+
+struct Row
+{
+    Row() = default;
+    Row(const Point& InFirstPoint)
+        : Y(InFirstPoint.Y)
+    {
+        Points.push_back(InFirstPoint);
+    }
+    
+
+    bool operator<(const Row& InPoint) const
+    {
+        return Y < InPoint.Y;
+    }
+    
+    int64_t Y = std::numeric_limits<int64_t>::max();
+    std::vector<Point> Points;
+};
+
+std::vector<Point> Directions =
+{
+    Point(-1, 0),
+    Point(0, -1),
+    Point(1, 0),
+    Point(0, 1)
 };
 
 std::vector<std::vector<std::vector<char>>> DoesTargetAcceptConnections =
@@ -47,10 +79,10 @@ std::vector<std::vector<std::vector<char>>> CanWeMoveTowards = {
 
 bool CanMove(const Point& InFrom, const Point& InTo, const std::vector<std::string>& InGrid)
 {
-    if (InTo.X < 0 || InTo.X >= InGrid[0].length() || InTo.Y < 0 || InTo.Y >= InGrid.size())
+    if (InTo.X < 0 || InTo.X >= static_cast<int64_t>(InGrid[0].length()) || InTo.Y < 0 || InTo.Y >= static_cast<int64_t>(InGrid.size()))
         return false;
 
-    if (InFrom.X < 0 || InFrom.X >= InGrid[0].length() || InFrom.Y < 0 || InFrom.Y >= InGrid.size())
+    if (InFrom.X < 0 || InFrom.X >= static_cast<int64_t>(InGrid[0].length()) || InFrom.Y < 0 || InFrom.Y >= static_cast<int64_t>(InGrid.size()))
         return false;
 
     const auto diff = InTo - InFrom;
@@ -60,14 +92,19 @@ bool CanMove(const Point& InFrom, const Point& InTo, const std::vector<std::stri
 
     if (std::ranges::find(DoesTargetAcceptConnections[diff.Y + 1][diff.X + 1], InGrid[InTo.Y][InTo.X]) == DoesTargetAcceptConnections[diff.Y + 1][diff.X + 1].end()) // Is the position next to us pointing towards us?
         return false;
-    
-    //if (DoesTargetAcceptConnections[diff.X + 1][diff.Y + 1].empty()) // Is the position next to us pointing towards us?
-    //    return false;
-    
+        
     return true;
 }
 
-int main(int argc, char* argv[])
+bool DoesRaycastIntersect(const char currentType)
+{
+    return currentType == '|'
+        || currentType == 'J'
+        || currentType == 'L'
+        || currentType == 'S';
+}
+
+int main(int /*argc*/, char* /*argv*/[])
 {
     std::ifstream inputFile;
     inputFile.open(Filename);
@@ -86,44 +123,79 @@ int main(int argc, char* argv[])
         {
             if (grid[y][x] == 'S')
             {
-                startPoint = Point(x, y);
+                startPoint = Point(static_cast<int64_t>(x), static_cast<int64_t>(y));
             }
         }
     }
 
-    std::vector<Point> directions =
-    {
-        Point(-1, 0),
-        Point(0, -1),
-        Point(1, 0),
-        Point(0, 1)
-    };
-
-    int64_t sizeOfLoop = 0;
     Point currenPosition = startPoint;
-    bool firstMove = true;
     Point lastPosition = Point(std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max());
-
-    while (firstMove || currenPosition != startPoint)
+    std::vector<Point> loopPoints;
+    loopPoints.push_back(startPoint);
+    for (bool firstMove = true; firstMove || currenPosition != startPoint; firstMove = false)
     {
-        firstMove = false;
-        for (auto direction : directions)
+        for (auto& direction : Directions)
         {
             if (currenPosition + direction == lastPosition)
                 continue;
             
             if (CanMove(currenPosition, currenPosition + direction, grid))
             {
-                std::cout << "Can move to " << (currenPosition + direction).X << ", " << (currenPosition + direction).Y << std::endl;
                 lastPosition = currenPosition;
                 currenPosition = currenPosition + direction;
-                sizeOfLoop++;
+                if (startPoint != currenPosition)
+                    loopPoints.push_back(currenPosition);
                 break;
             }
         }
     }
 
-    std::cout << "Result: " << sizeOfLoop / 2 << std::endl;
+    std::vector<Row> rows;
+    for (const auto& point : loopPoints)
+    {
+        bool foundEntry = false;
+        for (auto& row : rows)
+        {
+            if (row.Y == point.Y)
+            {
+                row.Points.emplace_back(point);
+                foundEntry = true;
+                break;
+            }
+        }
+        if (!foundEntry)
+        {
+            rows.emplace_back(point);
+        }
+    }
+    
+    int64_t pointsInside = 0;
+    for (auto& row : rows)
+    {
+        std::sort(row.Points.begin(), row.Points.end());
+        int32_t countFound = 0;
+        for (int64_t x = 0; x < row.Points.back().X; ++x)
+        {
+            const auto found
+                = std::ranges::find_if(row.Points,
+                    [point = Point(x, row.Y)](const Point& InPoint)
+                    {
+                        return InPoint == point;
+                    });
+
+            if (found != row.Points.end())
+            {
+                if (DoesRaycastIntersect(grid[row.Y][x]))
+                    countFound++;
+                continue;
+            }
+            if ((countFound % 2) == 1)
+                pointsInside++;
+        }
+    }
+
+    std::cout << "Result Part 1: " << loopPoints.size() / 2 << " is furthest away."<< std::endl;
+    std::cout << "Result Part 2: " << pointsInside << " points inside."<< std::endl;
     
     return 0;
 }
