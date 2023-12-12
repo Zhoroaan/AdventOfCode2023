@@ -1,13 +1,12 @@
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
-//std::string Filename = "TestInput.txt";
-std::string Filename = "Input.txt";
+std::string Filename = "TestInput.txt";
+//std::string Filename = "Input.txt";
 
-void ExpandMap(std::vector<std::string>& InData)
+void ExpandMap(std::vector<std::string>& InData, std::vector<int64_t>& InEmptyColums, std::vector<int64_t>& InEmptyRows)
 {
     std::stringstream rowStream;
     for (char column : InData[0])
@@ -19,17 +18,16 @@ void ExpandMap(std::vector<std::string>& InData)
     {
         if (std::ranges::find(*rowIt, '#') != rowIt->end())
             continue;
-
-        rowIt = InData.insert(rowIt, emptyRow);
-        ++rowIt;
+        
+        InEmptyRows.push_back(std::distance(InData.begin(), rowIt));
     }
 
-    for (int i = 0; i < InData[0].size(); ++i)
+    for (size_t columnIndex = 0; columnIndex < InData[0].size(); ++columnIndex)
     {
         bool emptyColumn = true;
         for (const auto& row : InData)
         {
-            if (row[i] == '#')
+            if (row[columnIndex] == '#')
             {
                 emptyColumn = false;
                 break;
@@ -37,12 +35,7 @@ void ExpandMap(std::vector<std::string>& InData)
         }
         if (!emptyColumn)
             continue;
-        
-        for (auto& row : InData)
-        {
-            row.insert(i, 1, '.');
-        }
-        i++;
+        InEmptyColums.push_back(columnIndex);
     }
 }
 
@@ -68,7 +61,45 @@ struct Vector
     int64_t Y = 0;
 };
 
-int main(int argc, char* argv[])
+int64_t CalculateDistance(std::vector<std::string> InData, std::vector<int64_t> InEmptyColumns,
+        std::vector<int64_t> InEmptyRows, int64_t InEmptyOffset = 1000000)
+{
+    std::vector<Vector> galaxies;
+    int64_t y = 0;
+    for (int64_t row = 0; row < static_cast<int64_t>(InData.size()); ++row)
+    {
+        int64_t x = 0;
+        for (int64_t column = 0; column < static_cast<int64_t>(InData[row].size()); ++column)
+        {
+            if (InData[row][column] == '#')
+                galaxies.emplace_back(x, y);
+            x += std::ranges::find(InEmptyColumns, column) != InEmptyColumns.end() ? InEmptyOffset : 1;
+        }
+        y += std::ranges::find(InEmptyRows, row) != InEmptyRows.end() ? InEmptyOffset : 1;
+    }
+
+    int64_t totalDistance = 0;
+    for (auto startGalaxy : galaxies)
+    {
+        for (auto targetGalaxy : galaxies)
+        {
+            if (targetGalaxy == startGalaxy)
+                continue;
+
+            if (startGalaxy.Y > targetGalaxy.Y)
+                continue;
+
+            if (startGalaxy.Y == targetGalaxy.Y && startGalaxy.X > targetGalaxy.X)
+                continue;
+
+            const auto distance = startGalaxy.ManhattanDistance(targetGalaxy);
+            totalDistance += distance;
+        }
+    }
+    return totalDistance;
+}
+
+int main(int /*argc*/, char* /*argv*/[])
 {
     std::ifstream inputFile;
     inputFile.open(Filename);
@@ -80,44 +111,11 @@ int main(int argc, char* argv[])
         data.push_back(inputLine);
     }
 
-    ExpandMap(data);
+    std::vector<int64_t> emptyColumns, emptyRows;
+    ExpandMap(data, emptyColumns, emptyRows);
 
-    std::vector<Vector> galaxies;
-    for (int64_t y = 0; y < static_cast<int64_t>(data.size()); ++y)
-    {
-        for (int64_t x = 0; x < static_cast<int64_t>(data[y].size()); ++x)
-        {
-            if (data[y][x] == '#')
-                galaxies.emplace_back(x, y);
-        }
-    }
-
-    int64_t totalDistance = 0;
-    for (auto startGalaxy : galaxies)
-    {
-        int64_t minPathLength = std::numeric_limits<int64_t>::max();
-
-        for (auto targetGalaxy : galaxies)
-        {
-            if (startGalaxy == galaxies[4] && targetGalaxy == galaxies[8])
-                int breakHere = 0;
-            if (targetGalaxy == startGalaxy)
-                continue;
-
-            if (startGalaxy.Y > targetGalaxy.Y)
-                continue;
-
-            if (startGalaxy.Y == targetGalaxy.Y && startGalaxy.X > targetGalaxy.X)
-                continue;
-
-            auto distance = startGalaxy.ManhattanDistance(targetGalaxy);
-            totalDistance += distance;
-            //if (distance < minPathLength)
-            //    minPathLength = distance;
-        }
-    }
-
-    std::cout << "Day 11 result: " << totalDistance << std::endl;
+    std::cout << "Day 11 result empty space 2: " << CalculateDistance(data, emptyColumns, emptyRows, 2)  << std::endl;
+    std::cout << "Day 11 result empty space 1000000: " << CalculateDistance(data, emptyColumns, emptyRows, 1000000) << std::endl;
     
     return 0;
 }
